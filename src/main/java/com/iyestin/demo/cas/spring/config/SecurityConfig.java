@@ -1,5 +1,6 @@
 package com.iyestin.demo.cas.spring.config;
 
+import com.iyestin.demo.cas.spring.security.GrantedAuthorityFromAssertionAttributesUserDetailsService;
 import org.jasig.cas.client.proxy.ProxyGrantingTicketStorage;
 import org.jasig.cas.client.proxy.ProxyGrantingTicketStorageImpl;
 import org.jasig.cas.client.session.SingleSignOutFilter;
@@ -21,8 +22,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.core.userdetails.UserDetailsByNameServiceWrapper;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.config.authentication.CachingUserDetailsService;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
@@ -31,6 +33,9 @@ import org.springframework.security.web.authentication.logout.SecurityContextLog
 import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
 
 import javax.sql.DataSource;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * SecurityConfig
@@ -42,14 +47,66 @@ import javax.sql.DataSource;
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
-//    @Autowired
-//    private DataSource dataSource;
+    public AuthenticationUserDetailsService authenticationUserDetailsService(){
+
+        GrantedAuthorityFromAssertionAttributesUserDetailsService service =
+                new GrantedAuthorityFromAssertionAttributesUserDetailsService(new String[]{"role"});
+        return service;
+    }
 
     @Override
     @Bean
     public UserDetailsService userDetailsService() {
-//        return new GlmsUserDetailsService();
-        return null;
+        UserDetailsService detailsService = new UserDetailsService() {
+            @Override
+            public UserDetails loadUserByUsername(final String username) throws UsernameNotFoundException {
+                return new UserDetails() {
+                    @Override
+                    public Collection<? extends GrantedAuthority> getAuthorities() {
+                        GrantedAuthority authority = new GrantedAuthority() {
+                            @Override
+                            public String getAuthority() {
+                                return "ROLE_TEST";
+                            }
+                        };
+                        List<GrantedAuthority> list = new ArrayList<GrantedAuthority>();
+                        list.add(authority);
+                        return list;
+                    }
+
+                    @Override
+                    public String getPassword() {
+                        return null;
+                    }
+
+                    @Override
+                    public String getUsername() {
+                        return username;
+                    }
+
+                    @Override
+                    public boolean isAccountNonExpired() {
+                        return true;
+                    }
+
+                    @Override
+                    public boolean isAccountNonLocked() {
+                        return true;
+                    }
+
+                    @Override
+                    public boolean isCredentialsNonExpired() {
+                        return true;
+                    }
+
+                    @Override
+                    public boolean isEnabled() {
+                        return true;
+                    }
+                };
+            }
+        };
+        return detailsService;
     }
 
     @Bean
@@ -66,6 +123,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     public CasAuthenticationFilter casFilter() throws Exception {
         CasAuthenticationFilter filter = new CasAuthenticationFilter();
         filter.setAuthenticationManager(authenticationManager());
+
         filter.setProxyGrantingTicketStorage(proxyGrantingTicketStorage());
         filter.setProxyReceptorUrl("/login/cas/proxyreceptor");
 
@@ -83,9 +141,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Bean
     public CasAuthenticationProvider casAuthenticationProvider(){
         CasAuthenticationProvider provider = new CasAuthenticationProvider();
-        UserDetailsByNameServiceWrapper wrapper = new UserDetailsByNameServiceWrapper();
-        wrapper.setUserDetailsService(userDetailsService());
-        provider.setAuthenticationUserDetailsService(wrapper);
+        provider.setServiceProperties(serviceProperties());
+//        UserDetailsByNameServiceWrapper wrapper = new UserDetailsByNameServiceWrapper(userDetailsService());
+//
+//        provider.setAuthenticationUserDetailsService(wrapper);
+
+        provider.setAuthenticationUserDetailsService(authenticationUserDetailsService());
 
         Cas20ProxyTicketValidator validator = new Cas20ProxyTicketValidator("http://localhost:8080/cas");
         validator.setAcceptAnyProxy(true);
@@ -116,6 +177,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             throws Exception {
         // add cas auth.
         auth.authenticationProvider(casAuthenticationProvider());
+
 //        auth.userDetailsService(userDetailsService());
 //        //指定密码加密所使用的加密器为passwordEncoder()
 //        // 需要将密码加密后写入数据库
