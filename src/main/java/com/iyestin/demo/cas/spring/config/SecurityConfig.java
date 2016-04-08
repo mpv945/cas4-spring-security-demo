@@ -47,6 +47,9 @@ import java.util.List;
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
+    @Autowired
+    SecurityCasConfigProperties casProperties;
+
     public AuthenticationUserDetailsService authenticationUserDetailsService(){
 
         GrantedAuthorityFromAssertionAttributesUserDetailsService service =
@@ -54,66 +57,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return service;
     }
 
-    @Override
-    @Bean
-    public UserDetailsService userDetailsService() {
-        UserDetailsService detailsService = new UserDetailsService() {
-            @Override
-            public UserDetails loadUserByUsername(final String username) throws UsernameNotFoundException {
-                return new UserDetails() {
-                    @Override
-                    public Collection<? extends GrantedAuthority> getAuthorities() {
-                        GrantedAuthority authority = new GrantedAuthority() {
-                            @Override
-                            public String getAuthority() {
-                                return "ROLE_TEST";
-                            }
-                        };
-                        List<GrantedAuthority> list = new ArrayList<GrantedAuthority>();
-                        list.add(authority);
-                        return list;
-                    }
-
-                    @Override
-                    public String getPassword() {
-                        return null;
-                    }
-
-                    @Override
-                    public String getUsername() {
-                        return username;
-                    }
-
-                    @Override
-                    public boolean isAccountNonExpired() {
-                        return true;
-                    }
-
-                    @Override
-                    public boolean isAccountNonLocked() {
-                        return true;
-                    }
-
-                    @Override
-                    public boolean isCredentialsNonExpired() {
-                        return true;
-                    }
-
-                    @Override
-                    public boolean isEnabled() {
-                        return true;
-                    }
-                };
-            }
-        };
-        return detailsService;
-    }
-
     @Bean
     public ServiceProperties serviceProperties(){
         ServiceProperties serviceProperties = new ServiceProperties();
         serviceProperties.setSendRenew(false);
-        serviceProperties.setService("http://localhost:8091/login/cas");
+//        serviceProperties.setService("http://localhost:8091/login/cas");
+        serviceProperties.setService(casProperties.getServiceName());
 
         serviceProperties.setAuthenticateAllArtifacts(true);
         return serviceProperties;
@@ -133,7 +82,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Bean
     public CasAuthenticationEntryPoint casEntryPoint(){
         CasAuthenticationEntryPoint entryPoint = new CasAuthenticationEntryPoint();
-        entryPoint.setLoginUrl("http://localhost:8080/cas/login");
+//        entryPoint.setLoginUrl("http://localhost:8080/cas/login");
+        entryPoint.setLoginUrl(casProperties.getCasAddress() + casProperties.getLoginUrl());
         entryPoint.setServiceProperties(serviceProperties());
         return entryPoint;
     }
@@ -148,7 +98,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
         provider.setAuthenticationUserDetailsService(authenticationUserDetailsService());
 
-        Cas20ProxyTicketValidator validator = new Cas20ProxyTicketValidator("http://localhost:8080/cas");
+        Cas20ProxyTicketValidator validator = new Cas20ProxyTicketValidator(casProperties.getCasAddress());
         validator.setAcceptAnyProxy(true);
         provider.setTicketValidator(validator);
 
@@ -164,8 +114,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Bean
     public Cas20ServiceTicketValidator ticketValidator(){
-        Cas20ServiceTicketValidator tv =  new Cas20ServiceTicketValidator("http://localhost:8080/cas");
-        tv.setProxyCallbackUrl("http://localhost:8091/login/cas/proxyreceptor");
+        Cas20ServiceTicketValidator tv =  new Cas20ServiceTicketValidator(casProperties.getCasAddress());
+        tv.setProxyCallbackUrl(casProperties.getAppAddress() + "/login/cas/proxyreceptor");
         tv.setProxyGrantingTicketStorage(proxyGrantingTicketStorage());
         return tv;
     }
@@ -177,13 +127,6 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             throws Exception {
         // add cas auth.
         auth.authenticationProvider(casAuthenticationProvider());
-
-//        auth.userDetailsService(userDetailsService());
-//        //指定密码加密所使用的加密器为passwordEncoder()
-//        // 需要将密码加密后写入数据库
-//        auth.userDetailsService(userDetailsService()).passwordEncoder(passwordEncoder());
-//        //不删除凭据，以便记住用户
-//        auth.eraseCredentials(false);
     }
 
     @Override
@@ -201,7 +144,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Bean
     public LogoutFilter requestSingleLogoutFilter(){
         SecurityContextLogoutHandler handler = new SecurityContextLogoutHandler();
-        LogoutFilter filter = new LogoutFilter("http://localhost:8080/cas/logout", handler);
+        LogoutFilter filter = new LogoutFilter(casProperties.getCasAddress()
+                + casProperties.getLogoutUrl(), handler);
         filter.setFilterProcessesUrl("/logout/cas");
         return filter;
     }
@@ -226,55 +170,6 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         http.authorizeRequests().antMatchers("/admin").hasRole("ADMIN")
                 .anyRequest().authenticated();
 
-//        http.authorizeRequests().antMatchers("/**").hasRole("USER")
-//                .anyRequest().authenticated();
-
-//        //设置拦截规则
-//        http.authorizeRequests()
-//                .antMatchers("/admin/**").hasRole("ADMIN")//只有管理员可访问页面
-//                .anyRequest().authenticated();
-//
-//        //自定义登录界面
-//        http.csrf().disable().formLogin().loginPage("/login")
-//                .loginProcessingUrl("/logon")
-//                .defaultSuccessUrl("/")
-//                .failureUrl("/login?error")
-//                .permitAll();
-//        // 自定义注销
-//        http.logout().logoutUrl("/logout")
-//                .logoutSuccessUrl("/login?logout")//注销回到登录页面并且提示登出
-//                .permitAll()
-//                .deleteCookies("JSESSIONID")
-//                .deleteCookies("remember-me")
-//                .invalidateHttpSession(true);
-//
-//        //session管理
-//        http.sessionManagement()
-//                .sessionFixation().changeSessionId()
-//                .maximumSessions(10).maxSessionsPreventsLogin(false).expiredUrl("/login?expired");
-//
-//        //remember-me配置
-//        http.rememberMe().tokenValiditySeconds(360000).tokenRepository(tokenRepository());
     }
 
-
-//    @Bean
-//    public BCryptPasswordEncoder passwordEncoder() {
-//        return new BCryptPasswordEncoder(4);
-//    }
-//
-//    @Bean
-//    public JdbcTokenRepositoryImpl tokenRepository() {
-//        JdbcTokenRepositoryImpl j = new JdbcTokenRepositoryImpl();
-//        j.setDataSource(dataSource);
-//        return j;
-//    }
-//
-//    @Bean
-//    public SavedRequestAwareAuthenticationSuccessHandler loginSuccessHandler() {
-//        SavedRequestAwareAuthenticationSuccessHandler handler = new SavedRequestAwareAuthenticationSuccessHandler();
-//        handler.setDefaultTargetUrl("/");
-//        //handler.setRequestCache();
-//        return handler;
-//    }
 }
