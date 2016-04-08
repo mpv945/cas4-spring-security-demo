@@ -113,7 +113,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     public ServiceProperties serviceProperties(){
         ServiceProperties serviceProperties = new ServiceProperties();
         serviceProperties.setSendRenew(false);
-        serviceProperties.setService("http://localhost:8090/login/cas");
+        serviceProperties.setService("http://localhost:8091/login/cas");
 
         serviceProperties.setAuthenticateAllArtifacts(true);
         return serviceProperties;
@@ -165,7 +165,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Bean
     public Cas20ServiceTicketValidator ticketValidator(){
         Cas20ServiceTicketValidator tv =  new Cas20ServiceTicketValidator("http://localhost:8080/cas");
-        tv.setProxyCallbackUrl("http://localhost:8090/login/cas/proxyreceptor");
+        tv.setProxyCallbackUrl("http://localhost:8091/login/cas/proxyreceptor");
         tv.setProxyGrantingTicketStorage(proxyGrantingTicketStorage());
         return tv;
     }

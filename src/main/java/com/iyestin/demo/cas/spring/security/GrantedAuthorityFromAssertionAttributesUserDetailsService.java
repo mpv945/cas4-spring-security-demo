@@ -22,6 +22,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.util.Assert;
 import org.jasig.cas.client.validation.Assertion;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -59,9 +60,6 @@ public final class GrantedAuthorityFromAssertionAttributesUserDetailsService ext
 		for (final String attribute : this.attributes) {
 			final Object value = assertion.getPrincipal().getAttributes().get(attribute);
 
-			System.out.println("attribute:"+ attribute);
-			System.out.println(value);
-
 			if (value == null) {
 				continue;
 			}
@@ -77,9 +75,13 @@ public final class GrantedAuthorityFromAssertionAttributesUserDetailsService ext
 
 			}
 			else {
-				grantedAuthorities.add(new SimpleGrantedAuthority(
-						this.convertToUpperCase ? value.toString().toUpperCase() : value
-								.toString()));
+				String[] valueArr = value.toString().split(";");
+				System.out.println(Arrays.toString(valueArr));
+				for(String val: valueArr){
+					grantedAuthorities.add(new SimpleGrantedAuthority(
+							this.convertToUpperCase ? val.toString().toUpperCase() : val
+									.toString()));
+				}
 			}
 
 		}
